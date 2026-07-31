@@ -167,7 +167,6 @@ export default function Home() {
   }
 
   const movePairs = Array.from({ length: Math.ceil(history.length / 2) }, (_, i) => history.slice(i * 2, i * 2 + 2));
-  const recordRows = Array.from({ length: Math.max(8, movePairs.length) }, (_, i) => movePairs[i] ?? []);
 
   return (
     <main className="app-shell">
@@ -231,7 +230,8 @@ export default function Home() {
         <aside className="right-panel glass-panel">
           <div className="panel-heading"><div><span>GAME RECORD</span><strong>Moves</strong></div><span className="opening">{history.length < 2 ? "Opening" : `${history.length} ply`}</span></div>
           <div className="moves-list">
-            {recordRows.map((pair, i) => <div className={`move-row ${pair.length ? "" : "empty"}`} key={i}><span>{i + 1}.</span><b>{pair[0]?.san ?? "—"}</b><b>{pair[1]?.san ?? "—"}</b></div>)}
+            {!movePairs.length && <div className="empty-record"><span>♙</span><p>Your moves will appear here.</p></div>}
+            {movePairs.map((pair, i) => <div className="move-row" key={i}><span>{i + 1}.</span><b>{pair[0]?.san}</b><b>{pair[1]?.san ?? ""}</b></div>)}
           </div>
           <div className="captured"><span>STATUS</span><p>{status}</p></div>
           <button className="resign" onClick={() => newGame()}><Flag size={16} /> Resign &amp; restart</button>
