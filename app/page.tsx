@@ -121,7 +121,7 @@ export default function Home() {
   }, [playTone]);
 
   useEffect(() => {
-    if (mode !== "engine" || game.turn() !== "b" || game.isGameOver() || thinking || blackTime === 0 || whiteTime === 0) return;
+    if (mode !== "engine" || game.turn() !== "b" || game.isGameOver() || blackTime === 0 || whiteTime === 0) return;
     setThinking(true);
     const timer = window.setTimeout(() => {
       const moveName = chooseEngineMove(game.fen(), depth);
@@ -129,7 +129,7 @@ export default function Home() {
       setThinking(false);
     }, 420);
     return () => window.clearTimeout(timer);
-  }, [fen, mode, depth, thinking, commitMove, game, blackTime, whiteTime]);
+  }, [fen, mode, depth, commitMove, game, blackTime, whiteTime]);
 
   useEffect(() => {
     if (game.isGameOver() || whiteTime === 0 || blackTime === 0) return;
