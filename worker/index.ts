@@ -1,6 +1,7 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
+import { handleApi } from "./api";
 
 interface Env {
   ASSETS: Fetcher;
@@ -28,6 +29,11 @@ interface ExecutionContext {
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+
+    // Global-leaderboard API. Built but not yet called by the client (no accounts
+    // yet); returns null for non-/api paths so the app router handles everything else.
+    const apiResponse = await handleApi(request, url);
+    if (apiResponse) return apiResponse;
 
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
