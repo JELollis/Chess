@@ -46,6 +46,15 @@ tsconfig.tsbuildinfo
 
 # ide
 /.vs/
+/.idea/
+/.vscode/
 
-# claude code (keep shareable launch config, ignore local settings)
-.claude/settings.local.json
+# local agent handoff and scratch state
+/.agents/
+/.claude/
+/.openai/
+
+# local caches and temporary files
+/.cache/
+/tmp/
+*.tmp
