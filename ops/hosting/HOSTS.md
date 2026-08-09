@@ -14,7 +14,7 @@ Box 1 has approximately 1 GiB RAM and a 62 GiB root volume. Box 2 has approximat
 
 - Both application hosts have the `aether-chess` system account and `/srv/aether-chess/{releases,shared}` layout.
 - Apache modules required for static hosting and reverse proxying are enabled.
-- Release `20260809T011427-5f33df4-node` is active on both application hosts.
+- Release `20260809T014430-5b41e28-node` is active on both application hosts.
 - The Aether systemd service is enabled on both hosts and binds only to `127.0.0.1:3100`.
 - Apache serves the temporary `aether.completeelectronics.net` name over HTTP and HTTPS and proxies the full Vinext application to the private service.
 - Both origins use the existing Let's Encrypt `*.completeelectronics.net` certificate; Cloudflare handles public HTTPS rewriting.
