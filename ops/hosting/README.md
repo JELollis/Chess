@@ -21,6 +21,6 @@ This directory contains reproducible configuration for the two Ubuntu applicatio
 - MySQL port 3306 is open on `tailscale0` and closed on public interfaces.
 - Secrets live in root-owned `/etc/aether-chess` files and MySQL login paths, never in this repository.
 
-The Apache template uses the reserved `.invalid` hostname until a real domain is purchased. It must not become the default vhost. TLS is added after DNS exists.
+Apache serves `aether.completeelectronics.net` and proxies the full Vinext application to its private production server on `127.0.0.1:3100`. It is configured as explicit HTTP and HTTPS name-based vhosts and uses the existing `*.completeelectronics.net` certificate. Cloudflare owns the public HTTP-to-HTTPS redirect policy.
 
-See `FAILOVER.md` for promotion and rejoin behavior. The API service template remains disabled until the current Cloudflare-shaped API is replaced by its MySQL-backed Node runtime.
+See `FAILOVER.md` for promotion and rejoin behavior. The anonymous free web client is active on both hosts; MySQL-backed account/API features remain deferred.

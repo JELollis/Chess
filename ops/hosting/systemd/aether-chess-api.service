@@ -1,5 +1,5 @@
 [Unit]
-Description=Aether Chess API
+Description=Aether Chess web application
 After=network-online.target tailscaled.service
 Wants=network-online.target
 
@@ -9,7 +9,8 @@ User=aether-chess
 Group=aether-chess
 WorkingDirectory=/srv/aether-chess/current
 EnvironmentFile=/etc/aether-chess/aether-chess.env
-ExecStart=/usr/local/bin/node server/index.js
+Environment=PATH=/opt/node/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/local/bin/npm run start -- --hostname 127.0.0.1 --port 3100
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true
@@ -20,4 +21,3 @@ ReadWritePaths=/var/lib/aether-chess
 
 [Install]
 WantedBy=multi-user.target
-

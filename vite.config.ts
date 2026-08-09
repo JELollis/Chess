@@ -18,6 +18,7 @@ const { d1 = null, r2 = null } = hostingConfig;
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
+const isNodeDeployment = process.env.AETHER_DEPLOY_TARGET === "node";
 
 const localBindingConfig = {
   main: "./worker/index.ts",
@@ -48,8 +49,19 @@ export default defineConfig(async () => {
   process.env.WRANGLER_LOG_PATH ??= ".wrangler/logs";
   process.env.MINIFLARE_REGISTRY_PATH ??= ".wrangler/registry";
 
-  // Wrangler snapshots its log path while the Cloudflare plugin is imported.
-  const { cloudflare } = await import("@cloudflare/vite-plugin");
+  const deploymentPlugins = [];
+
+  if (!isNodeDeployment) {
+    // Wrangler snapshots its log path while the Cloudflare plugin is imported.
+    const { cloudflare } = await import("@cloudflare/vite-plugin");
+    deploymentPlugins.push(
+      sites(),
+      cloudflare({
+        viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
+        config: localBindingConfig,
+      }),
+    );
+  }
 
   return {
     server: isCodexSeatbeltSandbox
@@ -57,11 +69,7 @@ export default defineConfig(async () => {
       : undefined,
     plugins: [
       vinext(),
-      sites(),
-      cloudflare({
-        viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
-        config: localBindingConfig,
-      }),
+      ...deploymentPlugins,
     ],
   };
 });

@@ -14,7 +14,10 @@ Box 1 has approximately 1 GiB RAM and a 62 GiB root volume. Box 2 has approximat
 
 - Both application hosts have the `aether-chess` system account and `/srv/aether-chess/{releases,shared}` layout.
 - Apache modules required for static hosting and reverse proxying are enabled.
-- The Aether Apache vhost and API service templates are installed but disabled.
+- Release `20260809T011427-5f33df4-node` is active on both application hosts.
+- The Aether systemd service is enabled on both hosts and binds only to `127.0.0.1:3100`.
+- Apache serves the temporary `aether.completeelectronics.net` name over HTTP and HTTPS and proxies the full Vinext application to the private service.
+- Both origins use the existing Let's Encrypt `*.completeelectronics.net` certificate; Cloudflare handles public HTTPS rewriting.
 - Private configuration belongs under `/etc/aether-chess` with group-restricted permissions.
 - MySQL port 3306 is allowed on `tailscale0` and closed on public interfaces on both database hosts.
 - Azure is GTID server ID 1. Box 2 is GTID server ID 2 with `read_only` and `super_read_only` enabled.
@@ -23,9 +26,7 @@ Box 1 has approximately 1 GiB RAM and a 62 GiB root volume. Box 2 has approximat
 
 ## Intentionally deferred
 
-- Public hostname and TLS certificate, pending domain purchase and DNS.
-- Enabling the vhost/API service, pending a deployable MySQL-backed Node server bundle.
+- MySQL-backed account/API functionality; the deployed free client does not depend on it.
 - Least-privilege Aether application database credentials, pending the production schema.
 - Automated promotion, which requires quorum to avoid split-brain.
 - Independent encrypted off-site backups and scheduled restore exercises.
-
