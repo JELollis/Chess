@@ -196,9 +196,18 @@ export default function Home() {
     // game, undo, or difficulty change cancels it so a stale move can't land.
     const timer = window.setTimeout(() => {
       requestMove(game.fen(), depth).then((moveName) => {
-        if (!active || !moveName) return;
+        if (!active) return; // superseded by new game / undo / difficulty change
         const nextGame = cloneGame(game);
-        commitMove(nextGame, nextGame.move(moveName));
+        // moveName is null only when the Worker failed (cancellation sets active=
+        // false above). Fall back to a legal move so the game never deadlocks on
+        // "Engine calculating…".
+        let chosen = moveName;
+        if (!chosen) {
+          const legal = nextGame.moves();
+          if (!legal.length) return;
+          chosen = legal[Math.floor(Math.random() * legal.length)];
+        }
+        commitMove(nextGame, nextGame.move(chosen));
       });
     }, 420);
     return () => {
