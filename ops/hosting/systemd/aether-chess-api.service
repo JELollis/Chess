@@ -1,0 +1,23 @@
+[Unit]
+Description=Aether Chess API
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aether-chess
+Group=aether-chess
+WorkingDirectory=/srv/aether-chess/current
+EnvironmentFile=/etc/aether-chess/aether-chess.env
+ExecStart=/usr/local/bin/node server/index.js
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/aether-chess
+
+[Install]
+WantedBy=multi-user.target
+

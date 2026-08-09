@@ -1,0 +1,12 @@
+[mysqld]
+server-id=1
+log_bin=/var/log/mysql/mysql-bin.log
+binlog_format=ROW
+binlog_row_image=FULL
+gtid_mode=ON
+enforce_gtid_consistency=ON
+log_replica_updates=ON
+relay_log_recovery=ON
+sync_binlog=1
+binlog_expire_logs_seconds=1209600
+
