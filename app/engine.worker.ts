@@ -1,8 +1,9 @@
-// Phase 0 — dedicated Web Worker that runs the chess search off the UI thread.
-// It owns no game state; it just answers search requests. The engine itself
-// (app/engine.ts) stays the DOM-free source of truth (SAN search, no quiescence).
+// Phase 0/1 — dedicated Web Worker that runs the chess search off the UI thread.
+// It owns no game state; it answers search requests, dispatching through the
+// engine registry so the active engine can be swapped (built-in JS now, Stockfish
+// and mod engines later) without touching the UI or protocol.
 
-import { chooseEngineMove } from "./engine";
+import { getEngine } from "./engines";
 import type { EngineInbound, SearchRequest } from "./engine-client";
 
 // Type the worker scope locally so this file doesn't depend on the "webworker"
@@ -12,17 +13,19 @@ const ctx = self as unknown as {
   postMessage: (message: EngineInbound) => void;
 };
 
-ctx.onmessage = (event: MessageEvent<SearchRequest>) => {
+ctx.onmessage = async (event: MessageEvent<SearchRequest>) => {
   const request = event.data;
   if (!request || request.type !== "search") return;
   try {
-    const move = chooseEngineMove(request.fen, request.depth);
-    ctx.postMessage({ type: "result", id: request.id, move } satisfies EngineInbound);
+    const engine = getEngine(request.engine);
+    if (!engine) throw new Error(`no engine registered for "${request.engine ?? "default"}"`);
+    const move = await engine.search(request.fen, request.depth);
+    ctx.postMessage({ type: "result", id: request.id, move });
   } catch (error) {
     ctx.postMessage({
       type: "error",
       id: request.id,
       message: error instanceof Error ? error.message : String(error),
-    } satisfies EngineInbound);
+    });
   }
 };
