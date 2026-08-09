@@ -56,6 +56,11 @@ export default function Home() {
   const recordedRef = useRef(false);
   const history = useMemo(() => game.history({ verbose: true }), [game]);
   const thinking = !review && mode === "engine" && game.turn() === "b" && !game.isGameOver() && blackTime > 0 && whiteTime > 0;
+  // Whether a clock has run out. Derived as a boolean so the engine effect can
+  // depend on it WITHOUT re-running on every one-second tick — otherwise each
+  // tick would cancel and restart the search, and a search longer than a second
+  // could never finish (the "Engine calculating…" that never moves).
+  const timeExpired = whiteTime === 0 || blackTime === 0;
 
   // While reviewing a stored game, the board shows that game's position at the
   // current step rather than the live game.
@@ -189,7 +194,7 @@ export default function Home() {
   }, [whiteTime, blackTime, useClock, mode, game, recordGame]);
 
   useEffect(() => {
-    if (review || mode !== "engine" || game.turn() !== "b" || game.isGameOver() || blackTime === 0 || whiteTime === 0) return;
+    if (review || mode !== "engine" || game.turn() !== "b" || game.isGameOver() || timeExpired) return;
     let active = true;
     // Small deliberate delay so the reply doesn't feel instant, then search in the
     // Worker. The result is applied only if this effect is still active — a new
@@ -215,7 +220,7 @@ export default function Home() {
       cancelMove();
       window.clearTimeout(timer);
     };
-  }, [review, mode, depth, commitMove, game, blackTime, whiteTime, requestMove, cancelMove]);
+  }, [review, mode, depth, commitMove, game, timeExpired, requestMove, cancelMove]);
 
   useEffect(() => {
     // The clock only runs when enabled, and stays idle until the game is under

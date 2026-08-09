@@ -8,39 +8,57 @@ import { createEngineClient, EngineClient, EngineInbound } from "./engine-client
 export function useEngineWorker() {
   const workerRef = useRef<Worker | null>(null);
   const clientRef = useRef<EngineClient | null>(null);
-
-  const spawn = useCallback(() => {
-    const worker = new Worker(new URL("./engine.worker.ts", import.meta.url), { type: "module" });
-    const client = createEngineClient((message) => worker.postMessage(message));
-    worker.onmessage = (event: MessageEvent<EngineInbound>) => client.handle(event.data);
-    workerRef.current = worker;
-    clientRef.current = client;
-  }, []);
-
-  const teardown = useCallback(() => {
-    workerRef.current?.terminate();
-    workerRef.current = null;
-    clientRef.current = null;
-  }, []);
+  const cancelRef = useRef<() => void>(() => {});
 
   useEffect(() => {
+    // `disposed` guards every respawn path so nothing recreates a Worker after
+    // the component has unmounted (which would leak an orphan Worker).
+    let disposed = false;
+
+    const spawn = () => {
+      if (disposed) return;
+      const worker = new Worker(new URL("./engine.worker.ts", import.meta.url), { type: "module" });
+      const client = createEngineClient((message) => worker.postMessage(message));
+      worker.onmessage = (event: MessageEvent<EngineInbound>) => client.handle(event.data);
+      // If the Worker itself faults, onmessage never fires — settle the pending
+      // request as null (the UI falls back to a legal move) and replace the Worker.
+      worker.onerror = () => {
+        client.cancel();
+        worker.terminate();
+        if (workerRef.current === worker) spawn();
+      };
+      workerRef.current = worker;
+      clientRef.current = client;
+    };
+
+    // Because the search runs synchronously inside the Worker, dropping the client
+    // resolver alone would leave the obsolete search occupying the Worker and
+    // blocking the next one. So cancellation settles the outstanding promise, then
+    // terminates the busy Worker and spins up a fresh, idle one.
+    cancelRef.current = () => {
+      clientRef.current?.cancel();
+      workerRef.current?.terminate();
+      workerRef.current = null;
+      clientRef.current = null;
+      spawn();
+    };
+
     spawn();
-    return teardown;
-  }, [spawn, teardown]);
+
+    return () => {
+      disposed = true;
+      cancelRef.current = () => {};
+      workerRef.current?.terminate();
+      workerRef.current = null;
+      clientRef.current = null;
+    };
+  }, []);
 
   const requestMove = useCallback((fen: string, depth: number): Promise<string | null> => {
     return clientRef.current ? clientRef.current.request(fen, depth) : Promise.resolve(null);
   }, []);
 
-  // Because the search runs synchronously inside the Worker, dropping the resolver
-  // alone would leave the obsolete search occupying the Worker and blocking the
-  // next one. So we actually interrupt it: settle any outstanding promise, then
-  // terminate the busy Worker and spin up a fresh, idle one for the next search.
-  const cancelMove = useCallback(() => {
-    clientRef.current?.cancel();
-    teardown();
-    spawn();
-  }, [teardown, spawn]);
+  const cancelMove = useCallback(() => cancelRef.current(), []);
 
   return { requestMove, cancelMove };
 }
