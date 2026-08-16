@@ -12,4 +12,5 @@ test("terminal analysis reports draws and ignores active positions", () => {
     depth: 0, evaluation: "0.00", score: 0, line: [],
   });
   assert.equal(terminalAnalysis("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"), null);
+  assert.equal(terminalAnalysis("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "draw")?.evaluation, "0.00");
 });

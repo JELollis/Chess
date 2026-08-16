@@ -74,7 +74,12 @@ export default function Home() {
   }, [review]);
   const displayGame = reviewState?.game ?? game;
   const displayLastMove = review ? reviewState?.lastMove ?? null : lastMove;
-  const { analysis, error: analysisError } = useStockfish(displayGame.fen(), liveAnalysis);
+  const analysisTerminalResult = review && review.index === review.sans.length
+    ? ({ win: "white", loss: "black", draw: "draw" } as const)[review.game.result]
+    : !review && useClock && whiteTime === 0 ? "black"
+      : !review && useClock && blackTime === 0 ? "white"
+        : !review && game.isThreefoldRepetition() ? "draw" : null;
+  const { analysis, error: analysisError } = useStockfish(displayGame.fen(), liveAnalysis, analysisTerminalResult);
 
   const board = useMemo(() => {
     const rows = displayGame.board();
@@ -321,8 +326,10 @@ export default function Home() {
   const exportPgn = review?.game.pgn ?? game.pgn();
   const exportResult = review
     ? ({ win: "1-0", loss: "0-1", draw: "1/2-1/2" } as const)[review.game.result]
-    : game.isCheckmate() ? (game.turn() === "b" ? "1-0" : "0-1")
-      : game.isDraw() ? "1/2-1/2" : "*";
+    : useClock && whiteTime === 0 ? "0-1"
+      : useClock && blackTime === 0 ? "1-0"
+        : game.isCheckmate() ? (game.turn() === "b" ? "1-0" : "0-1")
+          : game.isDraw() ? "1/2-1/2" : "*";
   const handleExport = (format: ExportFormat) => downloadGame({ pgn: exportPgn, result: exportResult, filename: review ? `aether-${review.game.id}` : undefined }, format);
 
   return (

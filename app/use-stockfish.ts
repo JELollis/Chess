@@ -15,14 +15,19 @@ function pvToSan(fen: string, pv: string[]) {
   return sans;
 }
 
-export function terminalAnalysis(fen: string): EngineAnalysis | null {
+export type TerminalResult = "white" | "black" | "draw" | null;
+
+export function terminalAnalysis(fen: string, forcedResult: TerminalResult = null): EngineAnalysis | null {
+  if (forcedResult === "white") return { depth: 0, evaluation: "+M0", score: null, line: [] };
+  if (forcedResult === "black") return { depth: 0, evaluation: "−M0", score: null, line: [] };
+  if (forcedResult === "draw") return { depth: 0, evaluation: "0.00", score: 0, line: [] };
   const game = new Chess(fen);
   if (!game.isGameOver()) return null;
   if (game.isCheckmate()) return { depth: 0, evaluation: `${game.turn() === "b" ? "+" : "−"}M0`, score: null, line: [] };
   return { depth: 0, evaluation: "0.00", score: 0, line: [] };
 }
 
-export function useStockfish(fen: string, enabled: boolean) {
+export function useStockfish(fen: string, enabled: boolean, terminalResult: TerminalResult = null) {
   const workerRef = useRef<Worker | null>(null);
   const enabledRef = useRef(enabled);
   const readyRef = useRef(false);
@@ -30,16 +35,18 @@ export function useStockfish(fen: string, enabled: boolean) {
   const acceptingRef = useRef(false);
   const activeFenRef = useRef<string | null>(null);
   const pendingFenRef = useRef<string | null>(fen);
+  const terminalResultRef = useRef<TerminalResult>(terminalResult);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [analysis, setAnalysis] = useState<EngineAnalysis>(EMPTY);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     enabledRef.current = enabled;
+    terminalResultRef.current = terminalResult;
     pendingFenRef.current = enabled ? fen : null;
 
     const startSearch = (worker: Worker, nextFen: string) => {
-      const terminal = terminalAnalysis(nextFen);
+      const terminal = terminalAnalysis(nextFen, terminalResultRef.current);
       if (terminal) {
         searchingRef.current = false; acceptingRef.current = false; activeFenRef.current = nextFen;
         queueMicrotask(() => setAnalysis(terminal)); return;
@@ -91,7 +98,13 @@ export function useStockfish(fen: string, enabled: boolean) {
             evaluation: mate ? `${whiteScore > 0 ? "+" : "−"}M${Math.abs(whiteScore)}` : `${whiteScore >= 0 ? "+" : ""}${(whiteScore / 100).toFixed(2)}`,
             line: pvToSan(analysisFen, pv) });
         };
-        worker.onerror = () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); setError("Stockfish could not be loaded."); };
+        worker.onerror = () => {
+          if (workerRef.current !== worker) return;
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          worker.terminate(); workerRef.current = null;
+          readyRef.current = false; searchingRef.current = false; acceptingRef.current = false;
+          setError("Stockfish could not be loaded.");
+        };
         worker.postMessage("uci"); workerRef.current = worker;
         timeoutRef.current = setTimeout(() => setError("Stockfish did not finish starting."), 15000);
       } catch { queueMicrotask(() => setError("Stockfish is not supported in this browser.")); return; }
@@ -103,7 +116,7 @@ export function useStockfish(fen: string, enabled: boolean) {
       if (searchingRef.current) { acceptingRef.current = false; worker.postMessage("stop"); }
       else startSearch(worker, fen);
     }
-  }, [fen, enabled]);
+  }, [fen, enabled, terminalResult]);
 
   useEffect(() => () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
