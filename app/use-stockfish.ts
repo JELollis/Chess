@@ -26,6 +26,8 @@ function pvToSan(fen: string, pv: string[]) {
 export function useStockfish(fen: string, enabled: boolean) {
   const workerRef = useRef<Worker | null>(null);
   const fenRef = useRef(fen);
+  const readyRef = useRef(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [analysis, setAnalysis] = useState<EngineAnalysis>(EMPTY);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,9 +39,22 @@ export function useStockfish(fen: string, enabled: boolean) {
     }
     if (!workerRef.current) {
       try {
-        const worker = new Worker("/stockfish/stockfish-18-lite-single.js");
+        const script = "/stockfish/stockfish-18-lite-single.js";
+        const wasm = encodeURIComponent(`${window.location.origin}/stockfish/stockfish-18-lite-single.wasm`);
+        const worker = new Worker(`${script}#${wasm},worker`);
         worker.onmessage = (event) => {
           const text = String(event.data);
+          if (text === "uciok") {
+            worker.postMessage("isready");
+            return;
+          }
+          if (text === "readyok") {
+            readyRef.current = true;
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+            worker.postMessage(`position fen ${fenRef.current}`);
+            worker.postMessage("go depth 16");
+            return;
+          }
           if (!text.startsWith("info ") || !text.includes(" pv ") || !text.includes(" score ")) return;
           const depth = Number(text.match(/\bdepth (\d+)/)?.[1] ?? 0);
           const scoreMatch = text.match(/\bscore (cp|mate) (-?\d+)/);
@@ -56,9 +71,13 @@ export function useStockfish(fen: string, enabled: boolean) {
             line: pvToSan(fenRef.current, pv),
           });
         };
-        worker.onerror = () => setError("Stockfish could not be loaded.");
+        worker.onerror = () => {
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          setError("Stockfish could not be loaded.");
+        };
         worker.postMessage("uci");
         workerRef.current = worker;
+        timeoutRef.current = setTimeout(() => setError("Stockfish did not finish starting."), 15000);
       } catch {
         queueMicrotask(() => setError("Stockfish is not supported in this browser."));
         return;
@@ -66,11 +85,16 @@ export function useStockfish(fen: string, enabled: boolean) {
     }
     fenRef.current = fen;
     queueMicrotask(() => { setError(null); setAnalysis(EMPTY); });
-    workerRef.current?.postMessage("stop");
-    workerRef.current?.postMessage(`position fen ${fen}`);
-    workerRef.current?.postMessage("go depth 16");
+    if (readyRef.current) {
+      workerRef.current?.postMessage("stop");
+      workerRef.current?.postMessage(`position fen ${fen}`);
+      workerRef.current?.postMessage("go depth 16");
+    }
   }, [fen, enabled]);
 
-  useEffect(() => () => workerRef.current?.terminate(), []);
+  useEffect(() => () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    workerRef.current?.terminate();
+  }, []);
   return { analysis, error };
 }

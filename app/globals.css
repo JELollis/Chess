@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-:root { --ink:#eaf1f5; --muted:#7f909b; --cyan:#53d7e8; --panel:rgba(13,24,31,.74); }
+:root { --ink:#eaf1f5; --muted:#7f909b; --cyan:#53d7e8; --panel:rgba(13,24,31,.74); --font-geist:"Segoe UI",Arial,sans-serif; --font-mono:"Cascadia Mono","Segoe UI Mono",Consolas,monospace; }
 * { box-sizing:border-box; }
 html, body { margin:0; min-height:100%; background:#071015; color:var(--ink); }
 body { font-family:var(--font-geist), Arial, sans-serif; overflow-x:hidden; }
