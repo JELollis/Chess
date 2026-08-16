@@ -5,7 +5,9 @@ import { exportGame } from "../app/game-export.ts";
 const sample = { pgn: "1. e4 e5 2. Nf3 Nc6" };
 
 test("exports a portable PGN and readable movelist", () => {
-  assert.equal(exportGame(sample, "pgn").text, sample.pgn);
+  assert.match(exportGame(sample, "pgn").text, /\[Result "\*"\]/);
+  assert.match(exportGame(sample, "pgn").text, /1\. e4 e5 2\. Nf3 Nc6 \*$/);
+  assert.match(exportGame({ ...sample, result: "1-0" }, "pgn").text, /1\. e4 e5 2\. Nf3 Nc6 1-0$/);
   assert.equal(exportGame(sample, "txt").text, "1. e4 e5\n2. Nf3 Nc6");
 });
 

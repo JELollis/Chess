@@ -319,7 +319,11 @@ export default function Home() {
   const resultLabel = (r: Result) => (r === "win" ? "You won" : r === "loss" ? "You lost" : "Draw");
   const displayStatus = review ? `Review · ${LEVEL_NAMES[review.game.level]} · ${resultLabel(review.game.result)}` : status;
   const exportPgn = review?.game.pgn ?? game.pgn();
-  const handleExport = (format: ExportFormat) => downloadGame({ pgn: exportPgn, filename: review ? `aether-${review.game.id}` : undefined }, format);
+  const exportResult = review
+    ? ({ win: "1-0", loss: "0-1", draw: "1/2-1/2" } as const)[review.game.result]
+    : game.isCheckmate() ? (game.turn() === "b" ? "1-0" : "0-1")
+      : game.isDraw() ? "1/2-1/2" : "*";
+  const handleExport = (format: ExportFormat) => downloadGame({ pgn: exportPgn, result: exportResult, filename: review ? `aether-${review.game.id}` : undefined }, format);
 
   return (
     <main className="app-shell">

@@ -103,7 +103,8 @@ footer { position:relative;z-index:2;height:42px;padding:0 4.2vw;border-top:1px 
 @media (max-width:760px) { .topbar { height:68px;padding:0 16px; }.brand span:last-child { display:none; }.mode-switch button { padding:8px; }.mode-switch svg { display:none; }.game-layout { display:flex;flex-direction:column;padding:20px 14px;gap:20px; }.board-stage { width:100%;order:1; }.left-panel { width:100%;order:2; }.left-panel h1,.left-panel>p,.left-panel .eyebrow,.divider { display:none; }.right-panel { width:100%;order:3;display:flex;min-height:360px; }.right-panel .captured { margin:0 18px; }.resign { align-self:auto; }.piece { font-size:clamp(30px,11vw,60px); }.board-frame { padding:8px; }.board-controls { margin-top:14px; }.board-controls button { padding:9px 10px; }.footer-right { display:none; } }
 
 /* Keyboard and motion accessibility */
-button:focus-visible,a:focus-visible,[tabindex]:focus-visible { outline:3px solid var(--cyan);outline-offset:3px; }
+button:focus-visible,a:focus-visible,select:focus-visible,[tabindex]:focus-visible { outline:3px solid var(--cyan);outline-offset:3px; }
+.settings-popover { max-height:calc(100vh - 92px);overflow-y:auto; }
 .move-jump { border:0;background:transparent;color:#a9bac1;font:500 12px var(--font-mono);text-align:left;padding:2px;cursor:pointer;border-radius:2px; }
 .move-jump:hover,.move-jump.cur { color:var(--cyan);background:rgba(83,215,232,.08); }
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important; } }
