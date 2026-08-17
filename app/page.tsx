@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chess, Move, Square } from "chess.js";
-import { Bot, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Flag, RotateCcw, Settings2, Swords, Trophy, Undo2, Volume2, VolumeX, X } from "lucide-react";
+import { Activity, Bot, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Flag, RotateCcw, Settings2, Swords, Trophy, Undo2, Volume2, VolumeX, X } from "lucide-react";
 import { ChessBoard, DifficultyOverlay, ProfileDialog, SettingsPanel } from "./chess-ui";
 import { useEngineWorker } from "./use-engine";
 import { cloneGame, decrementClock, GameMode, replayAt, undoTurn } from "./game-state";
 import { applyResult, GameRecord, Level, LEVEL_NAMES, loadGames, loadProfile, makeDefaultProfile, makeId, Profile, Result, saveGames, saveProfile } from "./rating";
+import { downloadGame, ExportFormat } from "./game-export";
+import { useStockfish } from "./use-stockfish";
 
 const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
 
@@ -26,6 +28,7 @@ const LEVEL_STORAGE_KEY = "aether-chess-level";
 // Whether games are timed. Not every game is played on a clock, so this is a
 // stored preference too — same future-profile note as LEVEL_STORAGE_KEY applies.
 const CLOCK_STORAGE_KEY = "aether-chess-clock";
+const ANALYSIS_STORAGE_KEY = "aether-chess-analysis";
 const START_TIME = 600; // seconds per side when the clock is on (10 minutes)
 
 export default function Home() {
@@ -42,6 +45,7 @@ export default function Home() {
   const [whiteTime, setWhiteTime] = useState(START_TIME);
   const [blackTime, setBlackTime] = useState(START_TIME);
   const [useClock, setUseClock] = useState(true);
+  const [liveAnalysis, setLiveAnalysis] = useState(false);
   const [levelChosen, setLevelChosen] = useState(false);
   const [profile, setProfile] = useState<Profile>(makeDefaultProfile);
   const [games, setGames] = useState<GameRecord[]>([]);
@@ -70,6 +74,12 @@ export default function Home() {
   }, [review]);
   const displayGame = reviewState?.game ?? game;
   const displayLastMove = review ? reviewState?.lastMove ?? null : lastMove;
+  const analysisTerminalResult = review && review.index === review.sans.length
+    ? ({ win: "white", loss: "black", draw: "draw" } as const)[review.game.result]
+    : !review && useClock && whiteTime === 0 ? "black"
+      : !review && useClock && blackTime === 0 ? "white"
+        : !review && game.isThreefoldRepetition() ? "draw" : null;
+  const { analysis, error: analysisError } = useStockfish(displayGame.fen(), liveAnalysis, analysisTerminalResult);
 
   const board = useMemo(() => {
     const rows = displayGame.board();
@@ -137,17 +147,25 @@ export default function Home() {
     const timer = window.setTimeout(() => {
       let saved: number | null = null;
       let clock: string | null = null;
+      let storedAnalysis: string | null = null;
       try {
         saved = Number(localStorage.getItem(LEVEL_STORAGE_KEY));
         clock = localStorage.getItem(CLOCK_STORAGE_KEY);
+        storedAnalysis = localStorage.getItem(ANALYSIS_STORAGE_KEY);
       } catch { /* storage optional */ }
       if (saved === 1 || saved === 2 || saved === 3) {
         setDepth(saved);
         setLevelChosen(true);
       }
       if (clock === "0" || clock === "1") setUseClock(clock === "1");
+      if (storedAnalysis === "1") setLiveAnalysis(true);
     }, 0);
     return () => window.clearTimeout(timer);
+  }, []);
+
+  const toggleAnalysis = useCallback((on: boolean) => {
+    setLiveAnalysis(on);
+    try { localStorage.setItem(ANALYSIS_STORAGE_KEY, on ? "1" : "0"); } catch { /* storage optional */ }
   }, []);
 
   // Load the stored rating profile and game history once on the client.
@@ -305,6 +323,14 @@ export default function Home() {
   const reviewPairs = review ? Array.from({ length: Math.ceil(review.sans.length / 2) }, (_, i) => review.sans.slice(i * 2, i * 2 + 2)) : [];
   const resultLabel = (r: Result) => (r === "win" ? "You won" : r === "loss" ? "You lost" : "Draw");
   const displayStatus = review ? `Review · ${LEVEL_NAMES[review.game.level]} · ${resultLabel(review.game.result)}` : status;
+  const exportPgn = review?.game.pgn ?? game.pgn();
+  const exportResult = review
+    ? ({ win: "1-0", loss: "0-1", draw: "1/2-1/2" } as const)[review.game.result]
+    : useClock && whiteTime === 0 ? "0-1"
+      : useClock && blackTime === 0 ? "1-0"
+        : game.isCheckmate() ? (game.turn() === "b" ? "1-0" : "0-1")
+          : game.isDraw() ? "1/2-1/2" : "*";
+  const handleExport = (format: ExportFormat) => downloadGame({ pgn: exportPgn, result: exportResult, filename: review ? `aether-${review.game.id}` : undefined }, format);
 
   return (
     <main className="app-shell">
@@ -375,7 +401,7 @@ export default function Home() {
         </section>
 
         <aside className="right-panel glass-panel">
-          <div className="panel-heading"><div><span>{review ? "REVIEWING" : "GAME RECORD"}</span><strong>Moves</strong></div><span className="opening">{review ? `${review.sans.length} ply` : history.length < 2 ? "Opening" : `${history.length} ply`}</span></div>
+          <div className="panel-heading"><div><span>{review ? "REVIEWING" : "GAME RECORD"}</span><strong>Moves</strong></div><div className="record-actions"><span className="opening">{review ? `${review.sans.length} ply` : history.length < 2 ? "Opening" : `${history.length} ply`}</span><label className="export-control" title="Export move record"><Download size={13} /><select aria-label="Export move record" defaultValue="" onChange={(e) => { if (e.target.value) handleExport(e.target.value as ExportFormat); e.target.value = ""; }}><option value="" disabled>Export</option><option value="pgn">PGN</option><option value="txt">TXT movelist</option><option value="csv">CSV</option><option value="json">JSON</option><option value="fen">FEN</option></select></label></div></div>
           <div className="moves-list">
             {review ? (
               reviewPairs.map((pair, i) => <div className="move-row" key={i}>
@@ -388,6 +414,11 @@ export default function Home() {
               {movePairs.map((pair, i) => <div className="move-row" key={i}><span>{i + 1}.</span><b>{pair[0]?.san}</b><b>{pair[1]?.san ?? ""}</b></div>)}
             </>)}
           </div>
+          {liveAnalysis && <div className="analysis-panel">
+            <div className="analysis-head"><span><Activity size={13} /> STOCKFISH 18</span><b>{analysisError ? "—" : analysis.evaluation}</b></div>
+            <div className="analysis-meta">{analysisError ?? (analysis.complete ? "Final result" : analysis.depth ? `Depth ${analysis.depth} · White evaluation` : "Analyzing position…")}</div>
+            {!!analysis.line.length && <p>{analysis.line.join(" ")}</p>}
+          </div>}
           <div className="captured"><span>STATUS</span><p>{displayStatus}</p></div>
           {review
             ? <button className="resign" onClick={() => setReview(null)}><X size={16} /> Exit review</button>
@@ -395,9 +426,9 @@ export default function Home() {
         </aside>
       </section>
 
-      <footer><span>LEGAL MOVE ENGINE ACTIVE</span><span>•</span><span>CASTLING · EN PASSANT · PROMOTION</span><span className="footer-right">AETHER / 01</span></footer>
+      <footer><span>LEGAL MOVE ENGINE ACTIVE</span><span>•</span><span>CASTLING · EN PASSANT · PROMOTION</span><a href="/stockfish/COPYING.txt" target="_blank" rel="noreferrer">STOCKFISH · GPLv3</a><span className="footer-right">AETHER / v0.1.3</span></footer>
 
-      {showSettings && <SettingsPanel depth={depth} useClock={useClock} onChooseLevel={chooseLevel} onToggleClock={toggleClock} onClose={() => setShowSettings(false)} />}
+      {showSettings && <SettingsPanel depth={depth} useClock={useClock} liveAnalysis={liveAnalysis} onChooseLevel={chooseLevel} onToggleClock={toggleClock} onToggleAnalysis={toggleAnalysis} onClose={() => setShowSettings(false)} />}
       {showProfile && <ProfileDialog profile={profile} games={games} onReview={startReview} onClose={() => setShowProfile(false)} />}
       {!levelChosen && <DifficultyOverlay onChoose={chooseLevel} />}
     </main>

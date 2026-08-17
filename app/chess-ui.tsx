@@ -57,12 +57,14 @@ export function ChessBoard({ board, flipped, selected, targets, lastMove, onSqua
 interface SettingsPanelProps {
   depth: number;
   useClock: boolean;
+  liveAnalysis: boolean;
   onChooseLevel: (level: number) => void;
   onToggleClock: (enabled: boolean) => void;
+  onToggleAnalysis: (enabled: boolean) => void;
   onClose: () => void;
 }
 
-export function SettingsPanel({ depth, useClock, onChooseLevel, onToggleClock, onClose }: SettingsPanelProps) {
+export function SettingsPanel({ depth, useClock, liveAnalysis, onChooseLevel, onToggleClock, onToggleAnalysis, onClose }: SettingsPanelProps) {
   return <div className="settings-popover glass-panel" role="dialog" aria-label="Engine settings" onKeyDown={(event) => event.key === "Escape" && onClose()}>
     <div className="settings-title"><div><span>ENGINE SETTINGS</span><strong>Difficulty</strong></div><button onClick={onClose} aria-label="Close settings">×</button></div>
     {[1, 2, 3].map((level) => <button className={depth === level ? "chosen" : ""} key={level} onClick={() => onChooseLevel(level)} aria-pressed={depth === level}><span>{LEVEL_NAMES[level as Level]}</span><small>Search depth {level}</small></button>)}
@@ -71,6 +73,13 @@ export function SettingsPanel({ depth, useClock, onChooseLevel, onToggleClock, o
       <div className="clock-switch" role="group" aria-label="Clock">
         <button className={useClock ? "active" : ""} onClick={() => onToggleClock(true)} aria-pressed={useClock}>On</button>
         <button className={!useClock ? "active" : ""} onClick={() => onToggleClock(false)} aria-pressed={!useClock}>Off</button>
+      </div>
+    </div>
+    <div className="settings-clock">
+      <div><span>LIVE ANALYTICS</span><small>Stockfish 18 evaluation</small></div>
+      <div className="clock-switch" role="group" aria-label="Live analytics">
+        <button className={liveAnalysis ? "active" : ""} onClick={() => onToggleAnalysis(true)} aria-pressed={liveAnalysis}>On</button>
+        <button className={!liveAnalysis ? "active" : ""} onClick={() => onToggleAnalysis(false)} aria-pressed={!liveAnalysis}>Off</button>
       </div>
     </div>
   </div>;
@@ -154,4 +163,3 @@ export function ProfileDialog({ profile, games, onReview, onClose }: ProfileDial
     </div>
   </div>;
 }
-
