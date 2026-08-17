@@ -416,7 +416,7 @@ export default function Home() {
           </div>
           {liveAnalysis && <div className="analysis-panel">
             <div className="analysis-head"><span><Activity size={13} /> STOCKFISH 18</span><b>{analysisError ? "—" : analysis.evaluation}</b></div>
-            <div className="analysis-meta">{analysisError ?? (analysis.depth ? `Depth ${analysis.depth} · White evaluation` : "Analyzing position…")}</div>
+            <div className="analysis-meta">{analysisError ?? (analysis.complete ? "Final result" : analysis.depth ? `Depth ${analysis.depth} · White evaluation` : "Analyzing position…")}</div>
             {!!analysis.line.length && <p>{analysis.line.join(" ")}</p>}
           </div>}
           <div className="captured"><span>STATUS</span><p>{displayStatus}</p></div>

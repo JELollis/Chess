@@ -9,8 +9,9 @@ test("terminal analysis reports checkmate from White's perspective", () => {
 
 test("terminal analysis reports draws and ignores active positions", () => {
   assert.deepEqual(terminalAnalysis("7k/5Q2/6K1/8/8/8/8/8 b - - 0 1"), {
-    depth: 0, evaluation: "0.00", score: 0, line: [],
+    depth: 0, evaluation: "0.00", score: 0, line: [], complete: true,
   });
   assert.equal(terminalAnalysis("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"), null);
-  assert.equal(terminalAnalysis("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "draw")?.evaluation, "0.00");
+  assert.equal(terminalAnalysis("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "draw")?.evaluation, "Draw");
+  assert.equal(terminalAnalysis("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "white")?.evaluation, "White wins");
 });

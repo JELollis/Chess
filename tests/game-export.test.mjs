@@ -16,8 +16,10 @@ test("exports structured CSV and JSON move records", () => {
   assert.match(csv, /^"move","color","san"/);
   assert.match(csv, /"1","white","e4","e2","e4"/);
   const json = JSON.parse(exportGame(sample, "json").text);
+  assert.equal(json.result, "*");
   assert.equal(json.moves.length, 4);
   assert.equal(json.moves[3].san, "Nc6");
+  assert.equal(JSON.parse(exportGame({ ...sample, result: "1-0" }, "json").text).result, "1-0");
 });
 
 test("exports the final position as FEN", () => {

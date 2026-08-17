@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Chess } from "chess.js";
 
-export interface EngineAnalysis { depth: number; evaluation: string; score: number | null; line: string[]; }
+export interface EngineAnalysis { depth: number; evaluation: string; score: number | null; line: string[]; complete?: boolean; }
 const EMPTY: EngineAnalysis = { depth: 0, evaluation: "Starting…", score: null, line: [] };
 
 function pvToSan(fen: string, pv: string[]) {
@@ -18,13 +18,13 @@ function pvToSan(fen: string, pv: string[]) {
 export type TerminalResult = "white" | "black" | "draw" | null;
 
 export function terminalAnalysis(fen: string, forcedResult: TerminalResult = null): EngineAnalysis | null {
-  if (forcedResult === "white") return { depth: 0, evaluation: "+M0", score: null, line: [] };
-  if (forcedResult === "black") return { depth: 0, evaluation: "−M0", score: null, line: [] };
-  if (forcedResult === "draw") return { depth: 0, evaluation: "0.00", score: 0, line: [] };
   const game = new Chess(fen);
+  if (game.isCheckmate()) return { depth: 0, evaluation: `${game.turn() === "b" ? "+" : "−"}M0`, score: null, line: [], complete: true };
+  if (forcedResult === "white") return { depth: 0, evaluation: "White wins", score: null, line: [], complete: true };
+  if (forcedResult === "black") return { depth: 0, evaluation: "Black wins", score: null, line: [], complete: true };
+  if (forcedResult === "draw") return { depth: 0, evaluation: "Draw", score: 0, line: [], complete: true };
   if (!game.isGameOver()) return null;
-  if (game.isCheckmate()) return { depth: 0, evaluation: `${game.turn() === "b" ? "+" : "−"}M0`, score: null, line: [] };
-  return { depth: 0, evaluation: "0.00", score: 0, line: [] };
+  return { depth: 0, evaluation: "0.00", score: 0, line: [], complete: true };
 }
 
 export function useStockfish(fen: string, enabled: boolean, terminalResult: TerminalResult = null) {
@@ -106,7 +106,12 @@ export function useStockfish(fen: string, enabled: boolean, terminalResult: Term
           setError("Stockfish could not be loaded.");
         };
         worker.postMessage("uci"); workerRef.current = worker;
-        timeoutRef.current = setTimeout(() => setError("Stockfish did not finish starting."), 15000);
+        timeoutRef.current = setTimeout(() => {
+          if (workerRef.current !== worker || readyRef.current) return;
+          worker.terminate(); workerRef.current = null;
+          readyRef.current = false; searchingRef.current = false; acceptingRef.current = false;
+          setError("Stockfish did not finish starting.");
+        }, 15000);
       } catch { queueMicrotask(() => setError("Stockfish is not supported in this browser.")); return; }
     }
 

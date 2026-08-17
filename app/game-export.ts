@@ -37,7 +37,7 @@ export function exportGame(game: ExportGame, format: ExportFormat) {
   }
   return {
     filename: `${stem}.json`, mime: "application/json",
-    text: JSON.stringify({ pgn: game.pgn, finalFen: replay.fen(), moves: moves.map(({ san, lan, from, to, color, piece, captured, promotion, before, after }) => ({ san, lan, from, to, color, piece, captured, promotion, before, after })) }, null, 2),
+    text: JSON.stringify({ result: game.result ?? "*", pgn: game.pgn, finalFen: replay.fen(), moves: moves.map(({ san, lan, from, to, color, piece, captured, promotion, before, after }) => ({ san, lan, from, to, color, piece, captured, promotion, before, after })) }, null, 2),
   };
 }
 
