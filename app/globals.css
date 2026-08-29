@@ -108,3 +108,14 @@ button:focus-visible,a:focus-visible,select:focus-visible,[tabindex]:focus-visib
 .move-jump { border:0;background:transparent;color:#a9bac1;font:500 12px var(--font-mono);text-align:left;padding:2px;cursor:pointer;border-radius:2px; }
 .move-jump:hover,.move-jump.cur { color:var(--cyan);background:rgba(83,215,232,.08); }
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important; } }
+
+/* Stockfish move-quality glyphs (NAG symbols) shown next to moves. */
+.nag { font:700 9px var(--font-mono);margin-left:2px;vertical-align:super;line-height:0; }
+.move-jump .nag { vertical-align:baseline;font-size:10px; }
+.analysis-meta .nag { vertical-align:baseline;font-size:11px; }
+.nag.g-brilliant { color:#2fd6c3; }
+.nag.g-good { color:#67c27a; }
+.nag.g-interesting { color:#b98cf0; }
+.nag.g-inacc { color:#e2c541; }
+.nag.g-mistake { color:#e8974f; }
+.nag.g-blunder { color:#e06666; }

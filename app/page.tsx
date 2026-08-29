@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chess, Move, Square } from "chess.js";
-import { Activity, Bot, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Flag, RotateCcw, Settings2, Swords, Trophy, Undo2, Volume2, VolumeX, X } from "lucide-react";
+import { Bot, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Flag, RotateCcw, Settings2, Swords, Trophy, Undo2, Volume2, VolumeX, X } from "lucide-react";
 import { ChessBoard, DifficultyOverlay, ProfileDialog, SettingsPanel } from "./chess-ui";
 import { useEngineWorker } from "./use-engine";
 import { cloneGame, decrementClock, GameMode, replayAt, undoTurn } from "./game-state";
 import { applyResult, GameRecord, Level, LEVEL_NAMES, loadGames, loadProfile, makeDefaultProfile, makeId, Profile, Result, saveGames, saveProfile } from "./rating";
 import { downloadGame, ExportFormat } from "./game-export";
-import { useStockfish } from "./use-stockfish";
+import { useMoveGrades } from "./use-stockfish";
 
 const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
 
@@ -20,6 +20,9 @@ function formatClock(total: number) {
 }
 
 const LEVELS = ["Casual", "Club", "Expert"];
+// Stockfish move-quality glyphs → CSS severity class and human label.
+const GLYPH_CLASS: Record<string, string> = { "!!": "g-brilliant", "!": "g-good", "!?": "g-interesting", "?!": "g-inacc", "?": "g-mistake", "??": "g-blunder" };
+const GLYPH_LABEL: Record<string, string> = { "!!": "Brilliant", "!": "Best move", "!?": "Interesting", "?!": "Inaccuracy", "?": "Mistake", "??": "Blunder" };
 // Where the player's chosen difficulty is remembered. This is a placeholder for
 // the eventual account system: once login/profiles exist, the difficulty should
 // be read from and written to the user's profile instead of localStorage. Until
@@ -74,12 +77,15 @@ export default function Home() {
   }, [review]);
   const displayGame = reviewState?.game ?? game;
   const displayLastMove = review ? reviewState?.lastMove ?? null : lastMove;
-  const analysisTerminalResult = review && review.index === review.sans.length
-    ? ({ win: "white", loss: "black", draw: "draw" } as const)[review.game.result]
-    : !review && useClock && whiteTime === 0 ? "black"
-      : !review && useClock && blackTime === 0 ? "white"
-        : !review && game.isThreefoldRepetition() ? "draw" : null;
-  const { analysis, error: analysisError } = useStockfish(displayGame.fen(), liveAnalysis, analysisTerminalResult);
+  // The moves Stockfish grades: the reviewed game's full line, or the live game.
+  const gradeMoves = useMemo(() => {
+    if (review) {
+      try { const replay = new Chess(); replay.loadPgn(review.game.pgn); return replay.history({ verbose: true }); }
+      catch { return []; }
+    }
+    return history;
+  }, [review, history]);
+  const { grades } = useMoveGrades(gradeMoves, liveAnalysis);
 
   const board = useMemo(() => {
     const rows = displayGame.board();
@@ -330,7 +336,28 @@ export default function Home() {
       : useClock && blackTime === 0 ? "1-0"
         : game.isCheckmate() ? (game.turn() === "b" ? "1-0" : "0-1")
           : game.isDraw() ? "1/2-1/2" : "*";
-  const handleExport = (format: ExportFormat) => downloadGame({ pgn: exportPgn, result: exportResult, filename: review ? `aether-${review.game.id}` : undefined }, format);
+  const handleExport = (format: ExportFormat) => {
+    // Real Seven Tag Roster values. Recorded games are always engine games (only
+    // those are stored), so a review implies the engine opponent. Date is read
+    // here, on click, rather than during render.
+    const d = new Date(review ? review.game.date : Date.now());
+    const isEngineGame = review ? true : mode === "engine";
+    const meta = {
+      event: "",
+      site: "Aether Chess",
+      date: `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`,
+      round: "?",
+      white: isEngineGame ? "Player" : "White",
+      black: isEngineGame ? "Aether Engine" : "Black",
+    };
+    downloadGame({ pgn: exportPgn, result: exportResult, filename: review ? `aether-${review.game.id}` : undefined, ...meta }, format);
+  };
+
+  // Render the Stockfish quality glyph for the move at `index` in gradeMoves.
+  const nag = (index: number) => {
+    const glyph = grades[index]?.glyph;
+    return glyph ? <sup className={`nag ${GLYPH_CLASS[glyph]}`}>{glyph}</sup> : null;
+  };
 
   return (
     <main className="app-shell">
@@ -406,19 +433,33 @@ export default function Home() {
             {review ? (
               reviewPairs.map((pair, i) => <div className="move-row" key={i}>
                 <span>{i + 1}.</span>
-                <button className={`move-jump ${review.index === i * 2 + 1 ? "cur" : ""}`} onClick={() => reviewSeek(i * 2 + 1)}>{pair[0]}</button>
-                {pair[1] ? <button className={`move-jump ${review.index === i * 2 + 2 ? "cur" : ""}`} onClick={() => reviewSeek(i * 2 + 2)}>{pair[1]}</button> : <span />}
+                <button className={`move-jump ${review.index === i * 2 + 1 ? "cur" : ""}`} onClick={() => reviewSeek(i * 2 + 1)}>{pair[0]}{nag(i * 2)}</button>
+                {pair[1] ? <button className={`move-jump ${review.index === i * 2 + 2 ? "cur" : ""}`} onClick={() => reviewSeek(i * 2 + 2)}>{pair[1]}{nag(i * 2 + 1)}</button> : <span />}
               </div>)
             ) : (<>
               {!movePairs.length && <div className="empty-record"><span>♙</span><p>Your moves will appear here.</p></div>}
-              {movePairs.map((pair, i) => <div className="move-row" key={i}><span>{i + 1}.</span><b>{pair[0]?.san}</b><b>{pair[1]?.san ?? ""}</b></div>)}
+              {movePairs.map((pair, i) => <div className="move-row" key={i}><span>{i + 1}.</span><b>{pair[0]?.san}{nag(i * 2)}</b><b>{pair[1] ? <>{pair[1].san}{nag(i * 2 + 1)}</> : ""}</b></div>)}
             </>)}
           </div>
-          {liveAnalysis && <div className="analysis-panel">
-            <div className="analysis-head"><span><Activity size={13} /> STOCKFISH 18</span><b>{analysisError ? "—" : analysis.evaluation}</b></div>
-            <div className="analysis-meta">{analysisError ?? (analysis.complete ? "Final result" : analysis.depth ? `Depth ${analysis.depth} · White evaluation` : "Analyzing position…")}</div>
-            {!!analysis.line.length && <p>{analysis.line.join(" ")}</p>}
-          </div>}
+          {review && liveAnalysis && review.index > 0 && (() => {
+            const grade = grades[review.index - 1];
+            const move = gradeMoves[review.index - 1];
+            return <div className="analysis-panel">
+              <div className="analysis-head">
+                <span>STOCKFISH 18</span>
+                <b>{grade ? grade.evalWhite : "…"}</b>
+              </div>
+              <div className="analysis-meta">
+                {move ? `${Math.ceil(review.index / 2)}${move.color === "w" ? "." : "…"} ${move.san}` : ""}
+                {grade?.glyph && <> · <span className={`nag ${GLYPH_CLASS[grade.glyph]}`}>{grade.glyph}</span> {GLYPH_LABEL[grade.glyph]}</>}
+              </div>
+              {grade
+                ? (grade.played
+                    ? <p>Engine&apos;s top choice.</p>
+                    : grade.bestSan && <p>Best was {grade.line || grade.bestSan}</p>)
+                : <p>Analyzing…</p>}
+            </div>;
+          })()}
           <div className="captured"><span>STATUS</span><p>{displayStatus}</p></div>
           {review
             ? <button className="resign" onClick={() => setReview(null)}><X size={16} /> Exit review</button>
