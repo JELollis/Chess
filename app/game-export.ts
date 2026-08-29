@@ -6,6 +6,18 @@ export interface ExportGame {
   pgn: string;
   filename?: string;
   result?: "1-0" | "0-1" | "1/2-1/2" | "*";
+  // Seven Tag Roster values. Any omitted field falls back to a PGN placeholder.
+  event?: string;
+  site?: string;
+  date?: string;   // "YYYY.MM.DD"
+  round?: string;
+  white?: string;
+  black?: string;
+}
+
+// Escape a value for a PGN tag (quotes and backslashes per the PGN spec).
+function pgnTagValue(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
 function gameFromPgn(pgn: string) {
@@ -20,8 +32,18 @@ export function exportGame(game: ExportGame, format: ExportFormat) {
   const stem = (game.filename || `aether-game-${new Date().toISOString().slice(0, 10)}`).replace(/[^a-z0-9_-]+/gi, "-");
 
   if (format === "pgn") {
-    replay.header("Result", game.result ?? "*");
-    return { filename: `${stem}.pgn`, mime: "application/x-chess-pgn", text: replay.pgn() };
+    const result = game.result ?? "*";
+    replay.header("Result", result);
+    // chess.js omits empty-valued headers and orders them by insertion, so build
+    // the Seven Tag Roster explicitly to guarantee all seven tags appear in the
+    // standard order. Event is intentionally blank for now.
+    const roster: [string, string][] = [
+      ["Event", game.event ?? ""], ["Site", game.site ?? "?"], ["Date", game.date ?? "????.??.??"],
+      ["Round", game.round ?? "?"], ["White", game.white ?? "?"], ["Black", game.black ?? "?"], ["Result", result],
+    ];
+    const header = roster.map(([key, value]) => `[${key} "${pgnTagValue(value)}"]`).join("\n");
+    const movetext = replay.pgn().replace(/^\[[^\]]*\]\s*$/gm, "").trim();
+    return { filename: `${stem}.pgn`, mime: "application/x-chess-pgn", text: `${header}\n\n${movetext}` };
   }
   if (format === "fen") return { filename: `${stem}.fen`, mime: "text/plain", text: replay.fen() };
   if (format === "txt") {
